@@ -88,7 +88,8 @@ def embed_file(file):
     cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{file.name}")
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
-        document_embedding_cache=cache_dir,        
+        document_embedding_cache=cache_dir,
+        key_encoder=sha256_key_encoder,
     )    
     
     vectorstore = FAISS.from_documents(
