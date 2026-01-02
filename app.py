@@ -44,7 +44,7 @@ with st.sidebar:
         "Upload a text file(.txt only)",
         type=["txt"],
     )
-    st.write("https://github.com/animasana/fullstack-gpt-challenge/tree/main/assignment06/app.py")
+    st.write("https://github.com/animasana/assignment06/blob/main/app.py")
 
 
 if not OPENAI_API_KEY:
