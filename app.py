@@ -78,8 +78,8 @@ def embed_file(file):
 
     status_placeholder.info("✂️ Splitting document into chunks...")
     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=5000,
-        chunk_overlap=1000,
+        chunk_size=1000,
+        chunk_overlap=200,
     )
     loader = TextLoader(file_path)
     docs = loader.load_and_split(text_splitter=splitter)
@@ -90,7 +90,7 @@ def embed_file(file):
         api_key=OPENAI_API_KEY,
     )
 
-    cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{file.name}")
+    cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
         document_embedding_cache=cache_dir,
@@ -124,7 +124,7 @@ def format_docs(docs):
 
 
 def load_memory(_):
-    return history.messages
+    return history
 
 
 prompt = ChatPromptTemplate.from_messages(
