@@ -91,7 +91,7 @@ def embed_file(file):
         api_key=OPENAI_API_KEY,
     )
 
-    sqlite_store = SQLiteCache(database_path="./.cache/sqlite_cache/documents.db")
+    sqlite_store = SQLiteCache(database_path="./.cache/sqlite_cache/documents.sqlite")
     # cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")    
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
