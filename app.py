@@ -54,7 +54,7 @@ if not OPENAI_API_KEY:
 
 
 llm = ChatOpenAI(    
-    model="gpt-4o-mini",
+    model="gpt-5-nano",
     streaming=True,    
     callbacks=[
         ChatCallbackHandler(),
