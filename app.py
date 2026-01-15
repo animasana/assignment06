@@ -66,37 +66,46 @@ def sha256_key_encoder(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
-@st.cache_resource(show_spinner="Embedding document...")
+@st.cache_resource(show_spinner=False)
 def embed_file(file):
+    status_placeholder = st.empty()
+
+    status_placeholder.info("📁 Saving file...")
     file_path = f"./.cache/files/{file.name}"
     Path("./.cache/files/").mkdir(parents=True, exist_ok=True)
     with open(file_path, "wb") as f:
         f.write(file.read())
 
-    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(    
+    status_placeholder.info("✂️ Splitting document into chunks...")
+    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=5000,
         chunk_overlap=1000,
     )
     loader = TextLoader(file_path)
     docs = loader.load_and_split(text_splitter=splitter)
-    
+
+    status_placeholder.info("🔄 Initializing embeddings...")
     embeddings = OpenAIEmbeddings(
         model="text-embedding-3-small",
         api_key=OPENAI_API_KEY,
     )
-    
+
     cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{file.name}")
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
         document_embedding_cache=cache_dir,
         key_encoder=sha256_key_encoder,
-    )    
-    
+    )
+
+    status_placeholder.info(f"🧠 Creating vector store... ({len(docs)} chunks)")
     vectorstore = FAISS.from_documents(
-        documents=docs, 
+        documents=docs,
         embedding=cached_embeddings,
     )
     retriever = vectorstore.as_retriever()
+
+    status_placeholder.success("✅ Document processed successfully!")
+
     return retriever
     
 
