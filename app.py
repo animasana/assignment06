@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -54,6 +55,9 @@ if not OPENAI_API_KEY:
         st.warning("Please enter your OpenAI API key to proceed.")
         st.stop()
 
+
+if not os.path.exists(".cache"):
+    os.makedirs(".cache")
 
 set_llm_cache(SQLiteCache(database_path=".cache/sqlite_cache/documents.db"))
 
