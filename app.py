@@ -68,6 +68,13 @@ def sha256_key_encoder(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
+@st.cache_data()
+def get_sql_store():
+    store =SQLStore(namespace="1984", db_url="sqlite:///embedding_store.db")
+    store.create_schema()
+    return store
+
+
 @st.cache_resource(show_spinner=False)
 def embed_file(file):
     status_placeholder = st.empty()    
@@ -92,8 +99,7 @@ def embed_file(file):
         api_key=OPENAI_API_KEY,
     )        
     
-    sql_store = SQLStore(namespace="1984", db_url="sqlite:///embedding_store.db")
-    sql_store.create_schema()    
+    sql_store = get_sql_store()    
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
         document_embedding_cache=sql_store,
@@ -106,7 +112,7 @@ def embed_file(file):
         embedding=cached_embeddings,
     )
     retriever = vectorstore.as_retriever()
-    
+
     status_placeholder.success("✅ Document processed successfully!")
 
     return retriever
