@@ -9,7 +9,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_classic.storage.file_system import LocalFileStore
 from langchain_classic.embeddings.cache import CacheBackedEmbeddings
-from langchain_core.stores import InMemoryByteStore
+from langchain_community.cache import SQLiteCache
 from pathlib import Path
 import hashlib
 
@@ -91,11 +91,11 @@ def embed_file(file):
         api_key=OPENAI_API_KEY,
     )
 
-    # cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")
-    memory_store = InMemoryByteStore()
+    sqlite_store = SQLiteCache(database_path="./.cache/sqlite_cache/documents.db")
+    # cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")    
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
-        document_embedding_cache=memory_store,
+        document_embedding_cache=sqlite_store,
         key_encoder=sha256_key_encoder,
     )
 
