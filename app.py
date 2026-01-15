@@ -7,9 +7,9 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.callbacks.base import BaseCallbackHandler
-from langchain_classic.storage.file_system import LocalFileStore
 from langchain_classic.embeddings.cache import CacheBackedEmbeddings
 from langchain_community.storage.sql import SQLStore
+
 
 from pathlib import Path
 import hashlib
@@ -92,11 +92,8 @@ def embed_file(file):
         api_key=OPENAI_API_KEY,
     )        
     
-    # cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")    
     sql_store = SQLStore(namespace="1984", db_url="sqlite:///embedding_store.db")
-
-    sql_store.create_schema()
-
+    sql_store.create_schema()    
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
         document_embedding_cache=sql_store,
@@ -109,7 +106,7 @@ def embed_file(file):
         embedding=cached_embeddings,
     )
     retriever = vectorstore.as_retriever()
-
+    
     status_placeholder.success("✅ Document processed successfully!")
 
     return retriever
