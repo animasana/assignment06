@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_classic.storage.file_system import LocalFileStore
 from langchain_classic.embeddings.cache import CacheBackedEmbeddings
+from langchain_core.stores import InMemoryByteStore
 from pathlib import Path
 import hashlib
 
@@ -68,7 +69,7 @@ def sha256_key_encoder(key: str) -> str:
 
 @st.cache_resource(show_spinner=False)
 def embed_file(file):
-    status_placeholder = st.empty()
+    status_placeholder = st.empty()    
 
     status_placeholder.info("📁 Saving file...")
     file_path = f"./.cache/files/{file.name}"
@@ -90,10 +91,11 @@ def embed_file(file):
         api_key=OPENAI_API_KEY,
     )
 
-    cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")
+    # cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")
+    memory_store = InMemoryByteStore()
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
-        document_embedding_cache=cache_dir,
+        document_embedding_cache=memory_store,
         key_encoder=sha256_key_encoder,
     )
 
