@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_classic.storage.file_system import LocalFileStore
 from langchain_classic.embeddings.cache import CacheBackedEmbeddings
+from langchain_core.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache
 from pathlib import Path
 import hashlib
@@ -54,6 +55,9 @@ if not OPENAI_API_KEY:
         st.stop()
 
 
+set_llm_cache(SQLiteCache(database_path=".cache/sqlite_cache/documents.db"))
+
+
 llm = ChatOpenAI(    
     model="gpt-5-nano",
     streaming=True,    
@@ -89,13 +93,12 @@ def embed_file(file):
     embeddings = OpenAIEmbeddings(
         model="text-embedding-3-small",
         api_key=OPENAI_API_KEY,
-    )
-
-    sqlite_store = SQLiteCache(database_path="./.cache/sqlite_cache/documents.sqlite")
-    # cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")    
+    )        
+    
+    cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{sha256_key_encoder(file.name)}")    
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
-        document_embedding_cache=sqlite_store,
+        document_embedding_cache=cache_dir,
         key_encoder=sha256_key_encoder,
     )
 
