@@ -124,7 +124,7 @@ def format_docs(docs):
 
 
 def load_memory(_):
-    return history
+    return history.messages
 
 
 prompt = ChatPromptTemplate.from_messages(
