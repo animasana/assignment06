@@ -68,7 +68,7 @@ def sha256_key_encoder(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
-@st.cache_data()
+@st.cache_resource()
 def get_sql_store():
     store =SQLStore(namespace="1984", db_url="sqlite:///embedding_store.db")
     store.create_schema()
