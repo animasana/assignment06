@@ -1,17 +1,16 @@
+import hashlib
+from pathlib import Path
 import streamlit as st
-from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from lib.chat_message_histories.streamlit import StreamlitChatMessageHistory
+from lib.text import TextLoader
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.callbacks.base import BaseCallbackHandler
+from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_classic.storage.file_system import LocalFileStore
 from langchain_classic.embeddings.cache import CacheBackedEmbeddings
-from pathlib import Path
-import hashlib
-
 
 st.set_page_config(
     page_title="Fullsack GPT Challenge Assignment 06",
@@ -53,14 +52,15 @@ if not OPENAI_API_KEY:
         st.stop()
 
 
-llm = ChatOpenAI(    
-    model="gpt-4o-mini",
-    streaming=True,    
+llm = ChatOpenAI(
+    model="gpt-5.4-mini",
+    streaming=True,
     callbacks=[
         ChatCallbackHandler(),
     ],
     api_key=OPENAI_API_KEY,
 )
+
 
 def sha256_key_encoder(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
@@ -73,32 +73,42 @@ def embed_file(file):
     with open(file_path, "wb") as f:
         f.write(file.read())
 
-    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(    
+    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=5000,
         chunk_overlap=1000,
     )
-    loader = TextLoader(file_path)
+    loader = TextLoader(
+        file_path=file_path,
+        encoding="utf-8",
+    )
     docs = loader.load_and_split(text_splitter=splitter)
-    
+
     embeddings = OpenAIEmbeddings(
         model="text-embedding-3-small",
         api_key=OPENAI_API_KEY,
     )
-    
+
     cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{file.name}")
+
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
         document_embedding_cache=cache_dir,
         key_encoder=sha256_key_encoder,
-    )    
-    
-    vectorstore = FAISS.from_documents(
-        documents=docs, 
-        embedding=cached_embeddings,
     )
-    retriever = vectorstore.as_retriever()
+
+    # vectorstore = FAISS.from_documents(
+    #     documents=docs,
+    #     embedding=cached_embeddings,
+    # )
+
+    vector_store = InMemoryVectorStore(embedding=cached_embeddings)
+
+    vector_store.add_documents(documents=docs)
+
+    retriever = vector_store.as_retriever()
+
     return retriever
-    
+
 
 def send_human_message(message):
     st.chat_message("human").markdown(message)
@@ -121,7 +131,7 @@ def load_memory(_):
 prompt = ChatPromptTemplate.from_messages(
     [
         (
-            "system", 
+            "system",
             """
             You are a helpful assistant. 
         
@@ -132,7 +142,7 @@ prompt = ChatPromptTemplate.from_messages(
             If you don't know the answer just say you don't know. DON'T make anything up.
 
             Context: {context}
-            """
+            """,
         ),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{question}"),
@@ -155,13 +165,13 @@ if file:
             {
                 "context": retriever | RunnableLambda(format_docs),
                 "question": RunnablePassthrough(),
-                "history": load_memory
+                "history": load_memory,
             }
             | prompt
             | llm
         )
-        with st.chat_message("ai"):        
-            chain.invoke(message)        
+        with st.chat_message("ai"):
+            chain.invoke(message)
 
 else:
     history.clear()
