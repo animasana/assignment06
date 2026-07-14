@@ -66,7 +66,7 @@ def sha256_key_encoder(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
-@st.cache_resource(show_spinner="Embedding document...")
+@st.cache_resource(show_spinner=False)
 def embed_file(file):
     file_path = f"./.cache/files/{file.name}"
     Path("./.cache/files/").mkdir(parents=True, exist_ok=True)
@@ -77,6 +77,7 @@ def embed_file(file):
         chunk_size=5000,
         chunk_overlap=1000,
     )
+
     loader = TextLoader(
         file_path=file_path,
         encoding="utf-8",
@@ -89,6 +90,11 @@ def embed_file(file):
     )
 
     cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{file.name}")
+
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-small",
+        api_key=OPENAI_API_KEY,
+    )
 
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         underlying_embeddings=embeddings,
