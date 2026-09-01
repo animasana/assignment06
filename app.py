@@ -3,6 +3,7 @@ from pathlib import Path
 import streamlit as st
 from lib.chat_message_histories.streamlit import StreamlitChatMessageHistory
 from lib.text import TextLoader
+from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -11,6 +12,7 @@ from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_classic.storage.file_system import LocalFileStore
 from langchain_classic.embeddings.cache import CacheBackedEmbeddings
+from pydantic import SecretStr
 
 st.set_page_config(
     page_title="Fullsack GPT Challenge Assignment 06",
@@ -37,7 +39,7 @@ class ChatCallbackHandler(BaseCallbackHandler):
 with st.sidebar:
     OPENAI_API_KEY = st.text_input(
         label="OpenAI API Key",
-        type="default",
+        type="password",
     )
     file = st.file_uploader(
         "Upload a text file(.txt only)",
@@ -52,18 +54,51 @@ if not OPENAI_API_KEY:
         st.stop()
 
 
-llm = ChatOpenAI(
-    model="gpt-5.4-mini",
+# llm = ChatOpenAI(
+#     model="gpt-5.4-mini",
+#     streaming=True,
+#     callbacks=[
+#         ChatCallbackHandler(),
+#     ],
+#     api_key=SecretStr(OPENAI_API_KEY),
+# )
+
+llm = init_chat_model(
+    model="openai:gpt-5.6-luna",
     streaming=True,
     callbacks=[
         ChatCallbackHandler(),
     ],
-    api_key=OPENAI_API_KEY,
+    api_key=SecretStr(OPENAI_API_KEY),
 )
 
 
-def sha256_key_encoder(key: str) -> str:
+def sha256_encoder(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def document_id(doc) -> str:
+    metadata = "|".join(f"{k}={v}" for k, v in sorted(doc.metadata.items()))
+    payload = f"{doc.page_content}\n{metadata}"
+    return sha256_encoder(payload)
+
+
+def add_documents_without_duplicates(vector_store, documents):
+    ids = [document_id(doc) for doc in documents]
+    existing_ids = {doc.id for doc in vector_store.get_by_ids(ids)}
+
+    new_docs = []
+    new_ids = []
+    for doc, doc_id in zip(documents, ids):
+        if doc_id in existing_ids:
+            continue
+        new_docs.append(doc)
+        new_ids.append(doc_id)
+
+    if not new_docs:
+        return []
+
+    return vector_store.add_documents(documents=new_docs, ids=new_ids)
 
 
 @st.cache_resource(show_spinner=False)
@@ -84,22 +119,17 @@ def embed_file(file):
     )
     docs = loader.load_and_split(text_splitter=splitter)
 
-    embeddings = OpenAIEmbeddings(
+    embeddings_model = OpenAIEmbeddings(
         model="text-embedding-3-small",
-        api_key=OPENAI_API_KEY,
+        api_key=SecretStr(OPENAI_API_KEY),
     )
 
     cache_dir = LocalFileStore(root_path=f"./.cache/embeddings/{file.name}")
 
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        api_key=OPENAI_API_KEY,
-    )
-
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
-        underlying_embeddings=embeddings,
+        underlying_embeddings=embeddings_model,
         document_embedding_cache=cache_dir,
-        key_encoder=sha256_key_encoder,
+        key_encoder='sha256',
     )
 
     # vectorstore = FAISS.from_documents(
@@ -109,7 +139,7 @@ def embed_file(file):
 
     vector_store = InMemoryVectorStore(embedding=cached_embeddings)
 
-    vector_store.add_documents(documents=docs)
+    add_documents_without_duplicates(vector_store, docs)
 
     retriever = vector_store.as_retriever()
 
